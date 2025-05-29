@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, ExternalLink } from 'lucide-react';
 
@@ -64,7 +65,6 @@ const URLProxy: React.FC<URLProxyProps> = ({ url }) => {
         // Fallback to public proxies if Oxylabs fails
         const publicProxies = [
           `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-          `https://cors-anywhere.herokuapp.com/${url}`,
           `https://proxy.cors.sh/${url}`
         ];
 
@@ -84,22 +84,26 @@ const URLProxy: React.FC<URLProxyProps> = ({ url }) => {
               continue;
             }
 
-            let data;
-            try {
-              // Try to parse as JSON first (for allorigins.win)
-              data = await response.json();
-              if (data.contents) {
-                setContent(data.contents);
-                setLoading(false);
-                return;
-              }
-            } catch {
-              // If JSON parsing fails, treat as HTML
-              const htmlContent = await response.text();
+            // Check content type to determine how to parse response
+            const contentType = response.headers.get('content-type') || '';
+            let htmlContent;
+
+            if (contentType.includes('application/json')) {
+              // For allorigins.win
+              const data = await response.json();
+              htmlContent = data.contents;
+            } else {
+              // For proxy.cors.sh and others that return HTML directly
+              htmlContent = await response.text();
+            }
+
+            if (htmlContent) {
+              console.log(`Successfully fetched content through fallback proxy: ${proxyUrl}`);
               setContent(htmlContent);
               setLoading(false);
               return;
             }
+
           } catch (fallbackErr) {
             console.error(`Fallback proxy ${proxyUrl} failed:`, fallbackErr);
             continue;
@@ -135,7 +139,7 @@ const URLProxy: React.FC<URLProxyProps> = ({ url }) => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
             <p className="text-gray-600">Loading preview...</p>
-            <p className="text-xs text-gray-500 mt-1">Using Oxylabs proxy service...</p>
+            <p className="text-xs text-gray-500 mt-1">Trying proxy services...</p>
           </div>
         </div>
       )}
