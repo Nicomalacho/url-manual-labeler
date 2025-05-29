@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Upload, Download, ArrowLeft, ArrowRight } from 'lucide-react';
-import URLPreview from './URLPreview';
+import URLProxy from './URLProxy';
 import { parseCSV, generateCSV, downloadCSV } from '../utils/csvUtils';
 
 interface URLData {
@@ -200,7 +199,7 @@ const URLAssessment = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="p-0 h-[600px]">
-                  <URLPreview url={currentURL?.url} />
+                  <URLProxy url={currentURL?.url} />
                 </CardContent>
               </Card>
             </div>
