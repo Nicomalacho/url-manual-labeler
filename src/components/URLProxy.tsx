@@ -21,31 +21,74 @@ const URLProxy: React.FC<URLProxyProps> = ({ url }) => {
       setLoading(true);
       setError(false);
       
-      try {
-        // Use a CORS proxy service to fetch the URL with browser headers
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        
-        const response = await fetch(proxyUrl, {
-          method: 'GET',
-          headers: {
-            'User-Agent': navigator.userAgent,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
+      // List of proxy services to try
+      const proxies = [
+        `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+        `https://cors-anywhere.herokuapp.com/${url}`,
+        `https://proxy.cors.sh/${url}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+      ];
+
+      for (const proxyUrl of proxies) {
+        try {
+          console.log(`Trying proxy: ${proxyUrl}`);
+          
+          const response = await fetch(proxyUrl, {
+            method: 'GET',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.5',
+              'Accept-Encoding': 'gzip, deflate, br',
+              'DNT': '1',
+              'Connection': 'keep-alive',
+              'Upgrade-Insecure-Requests': '1',
+              'Sec-Fetch-Dest': 'document',
+              'Sec-Fetch-Mode': 'navigate',
+              'Sec-Fetch-Site': 'cross-site'
+            }
+          });
+
+          if (!response.ok) {
+            console.log(`Proxy failed with status: ${response.status}`);
+            continue;
           }
-        });
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch');
+          let data;
+          try {
+            // Try to parse as JSON first (for allorigins.win)
+            data = await response.json();
+            if (data.contents) {
+              setContent(data.contents);
+              setLoading(false);
+              return;
+            }
+          } catch {
+            // If JSON parsing fails, treat as HTML
+            const htmlContent = await response.text();
+            setContent(htmlContent);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error(`Proxy ${proxyUrl} failed:`, err);
+          continue;
         }
+      }
 
-        const data = await response.json();
-        setContent(data.contents);
+      // If all proxies fail, try direct fetch as last resort
+      try {
+        console.log('Trying direct fetch as last resort');
+        const response = await fetch(url, {
+          mode: 'no-cors',
+          method: 'GET'
+        });
+        
+        // no-cors mode doesn't give us the content, but we can try to load it in iframe
+        setContent(`<html><body><p>Loading ${url}...</p><script>window.location.href = '${url}';</script></body></html>`);
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching URL:', err);
+        console.error('All fetch attempts failed:', err);
         setError(true);
         setLoading(false);
       }
@@ -73,6 +116,7 @@ const URLProxy: React.FC<URLProxyProps> = ({ url }) => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
             <p className="text-gray-600">Loading preview...</p>
+            <p className="text-xs text-gray-500 mt-1">Trying multiple proxy services...</p>
           </div>
         </div>
       )}
@@ -82,7 +126,8 @@ const URLProxy: React.FC<URLProxyProps> = ({ url }) => {
           <div className="text-center p-6">
             <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">Preview not available</h3>
-            <p className="text-gray-600 mb-4">Unable to load preview for this URL</p>
+            <p className="text-gray-600 mb-2">Unable to load preview for this URL</p>
+            <p className="text-xs text-gray-500 mb-4">This may be due to CORS restrictions or site security policies</p>
             <button
               onClick={openInNewTab}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
@@ -109,7 +154,8 @@ const URLProxy: React.FC<URLProxyProps> = ({ url }) => {
           srcDoc={content}
           className="w-full h-full border-0"
           title={`Preview of ${url}`}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+          referrerPolicy="no-referrer"
         />
       )}
     </div>
