@@ -30,7 +30,12 @@ const URLAssessment = () => {
     reader.onload = (e) => {
       const csvText = e.target?.result as string;
       const parsedData = parseCSV(csvText);
-      setUrls(parsedData);
+      // Ensure each row has a url property and convert to AssessmentData
+      const assessmentData: AssessmentData[] = parsedData.map(row => ({
+        url: row.url || '',
+        ...row
+      }));
+      setUrls(assessmentData);
       setCurrentIndex(0);
       setAssessments({});
     };
@@ -125,7 +130,7 @@ const URLAssessment = () => {
           </div>
 
           {/* Main Assessment Interface */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[600px]">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[700px]">
             {/* URL Preview */}
             <div className="lg:col-span-2">
               <Card className="h-full">
@@ -154,7 +159,7 @@ const URLAssessment = () => {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="p-0 h-[500px]">
+                <CardContent className="p-0 h-[600px]">
                   <URLPreview url={currentURL?.url} />
                 </CardContent>
               </Card>

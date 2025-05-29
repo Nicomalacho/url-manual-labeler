@@ -72,11 +72,17 @@ const URLPreview: React.FC<URLPreviewProps> = ({ url }) => {
 
       <iframe
         src={url}
-        className="w-full h-full border-0"
+        className="w-full h-full border-0 scale-75 origin-top-left"
+        style={{ 
+          width: '133.33%', 
+          height: '133.33%',
+          transform: 'scale(0.75)',
+          transformOrigin: '0 0'
+        }}
         onLoad={handleLoad}
         onError={handleError}
         title={`Preview of ${url}`}
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
       />
     </div>
   );
