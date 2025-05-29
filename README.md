@@ -1,5 +1,24 @@
 # Welcome to your Lovable project
 
+
+
+https://github.com/user-attachments/assets/87181582-7e60-4056-bb7a-696afa764062
+
+
+## For this to work better
+1. Install arc
+2. make this app a favorite
+3. ![image](https://github.com/user-attachments/assets/674f56e7-762a-4ccb-a6c8-0cba762cc03f)
+4. This is important so the app opens a page in a peek way
+
+## Commands 
+1. Esc - Close the modal
+2. Product (p) - Later you can download the file and change it to whatever you want
+3. Oter (w)
+4. Space bar (Opens the page in peek mode) 
+
+
+
 ## Project info
 
 **URL**: https://lovable.dev/projects/52044e37-e777-4685-8687-a04e6ba7ead2
