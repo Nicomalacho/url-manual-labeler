@@ -48,6 +48,13 @@ const URLAssessment = () => {
       ...prev,
       [currentIndex]: assessment
     }));
+    
+    // Auto-navigate to next URL after assessment
+    setTimeout(() => {
+      if (currentIndex < urls.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+      }
+    }, 300); // Small delay for visual feedback
   };
 
   // Navigate between URLs
@@ -57,13 +64,46 @@ const URLAssessment = () => {
     }
   };
 
-  // Handle keyboard navigation
+  // Handle scrolling in the preview
+  const scrollPreview = () => {
+    // This will be handled by the iframe, so we'll pass this event down
+    const iframe = document.querySelector('iframe');
+    if (iframe && iframe.contentWindow) {
+      try {
+        iframe.contentWindow.scrollBy(0, 300);
+      } catch (e) {
+        // Cross-origin restrictions might prevent this, but we'll try
+        console.log('Cannot scroll iframe due to cross-origin restrictions');
+      }
+    }
+  };
+
+  // Handle keyboard navigation and shortcuts
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowLeft') {
-        navigateToURL(currentIndex - 1);
-      } else if (event.key === 'ArrowRight') {
-        navigateToURL(currentIndex + 1);
+      // Prevent default behavior for our custom shortcuts
+      if (['p', 'w', ' ', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        event.preventDefault();
+      }
+
+      switch (event.key) {
+        case 'ArrowLeft':
+          navigateToURL(currentIndex - 1);
+          break;
+        case 'ArrowRight':
+          navigateToURL(currentIndex + 1);
+          break;
+        case 'p':
+        case 'P':
+          handleAssessment('Product');
+          break;
+        case 'w':
+        case 'W':
+          handleAssessment('Other');
+          break;
+        case ' ':
+          scrollPreview();
+          break;
       }
     };
 
@@ -180,7 +220,7 @@ const URLAssessment = () => {
                     }`}
                     onClick={() => handleAssessment('Product')}
                   >
-                    Product
+                    Product (P)
                   </Button>
                   <Button
                     className={`w-full h-12 text-lg ${
@@ -190,7 +230,7 @@ const URLAssessment = () => {
                     }`}
                     onClick={() => handleAssessment('Other')}
                   >
-                    Other
+                    Other (W)
                   </Button>
                   
                   {assessments[currentIndex] && (
@@ -226,9 +266,11 @@ const URLAssessment = () => {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-sm text-gray-600 space-y-1">
-                    <p>💡 <strong>Tip:</strong> Use arrow keys to navigate</p>
-                    <p>← Previous URL</p>
-                    <p>→ Next URL</p>
+                    <p>💡 <strong>Keyboard Shortcuts:</strong></p>
+                    <p><strong>P</strong> - Mark as Product</p>
+                    <p><strong>W</strong> - Mark as Other</p>
+                    <p><strong>Space</strong> - Scroll down preview</p>
+                    <p><strong>←/→</strong> - Navigate URLs</p>
                   </div>
                 </CardContent>
               </Card>
