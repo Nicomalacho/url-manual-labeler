@@ -1,54 +1,65 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, ArrowRight } from 'lucide-react';
-import URLProxy from './URLProxy';
+import WindowManager from './WindowManager';
 
 interface URLPreviewSectionProps {
   url: string;
   currentIndex: number;
   totalUrls: number;
+  isWindowOpen: boolean;
   onNavigate: (index: number) => void;
+  onOpenWindow: () => void;
+  onCloseWindow: () => void;
 }
 
 const URLPreviewSection: React.FC<URLPreviewSectionProps> = ({
   url,
   currentIndex,
   totalUrls,
-  onNavigate
+  isWindowOpen,
+  onNavigate,
+  onOpenWindow,
+  onCloseWindow
 }) => {
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg truncate" title={url}>
-            {url}
-          </CardTitle>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onNavigate(currentIndex - 1)}
-              disabled={currentIndex === 0}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onNavigate(currentIndex + 1)}
-              disabled={currentIndex === totalUrls - 1}
-            >
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </div>
+    <div className="space-y-4">
+      {/* Navigation Controls */}
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-gray-600">
+          URL {currentIndex + 1} of {totalUrls}
         </div>
-      </CardHeader>
-      <CardContent className="p-0 h-[600px]">
-        <URLProxy url={url} />
-      </CardContent>
-    </Card>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onNavigate(currentIndex - 1)}
+            disabled={currentIndex === 0}
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onNavigate(currentIndex + 1)}
+            disabled={currentIndex === totalUrls - 1}
+          >
+            Next
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Window Manager */}
+      <WindowManager
+        url={url}
+        isWindowOpen={isWindowOpen}
+        onOpenWindow={onOpenWindow}
+        onCloseWindow={onCloseWindow}
+      />
+    </div>
   );
 };
 

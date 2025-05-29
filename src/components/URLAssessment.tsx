@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { parseCSV, generateCSV, downloadCSV } from '../utils/csvUtils';
 import FileUpload from './FileUpload';
 import ProgressStats from './ProgressStats';
@@ -21,6 +21,8 @@ const URLAssessment = () => {
   const [urls, setUrls] = useState<AssessmentData[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [assessments, setAssessments] = useState<Record<number, 'Product' | 'Other'>>({});
+  const [isWindowOpen, setIsWindowOpen] = useState(false);
+  const currentWindowRef = useRef<Window | null>(null);
 
   // Handle CSV file upload
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,7 +33,6 @@ const URLAssessment = () => {
     reader.onload = (e) => {
       const csvText = e.target?.result as string;
       const parsedData = parseCSV(csvText);
-      // Ensure each row has a url property and convert to AssessmentData
       const assessmentData: AssessmentData[] = parsedData.map(row => ({
         url: row.url || '',
         ...row
@@ -39,8 +40,58 @@ const URLAssessment = () => {
       setUrls(assessmentData);
       setCurrentIndex(0);
       setAssessments({});
+      closeCurrentWindow();
     };
     reader.readAsText(file);
+  };
+
+  // Window management functions
+  const closeCurrentWindow = () => {
+    if (currentWindowRef.current && !currentWindowRef.current.closed) {
+      currentWindowRef.current.close();
+    }
+    currentWindowRef.current = null;
+    setIsWindowOpen(false);
+  };
+
+  const openWindow = () => {
+    if (!urls[currentIndex]?.url) return;
+
+    closeCurrentWindow(); // Close any existing window first
+
+    try {
+      const newWindow = window.open(
+        urls[currentIndex].url,
+        '_blank',
+        'width=1200,height=800,scrollbars=yes,resizable=yes,toolbar=yes,menubar=yes,location=yes'
+      );
+
+      if (newWindow) {
+        currentWindowRef.current = newWindow;
+        setIsWindowOpen(true);
+        
+        // Check if window is closed manually
+        const checkClosed = setInterval(() => {
+          if (newWindow.closed) {
+            setIsWindowOpen(false);
+            currentWindowRef.current = null;
+            clearInterval(checkClosed);
+          }
+        }, 1000);
+      } else {
+        console.log('Popup blocked or failed to open');
+      }
+    } catch (error) {
+      console.error('Failed to open window:', error);
+    }
+  };
+
+  const focusWindow = () => {
+    if (currentWindowRef.current && !currentWindowRef.current.closed) {
+      currentWindowRef.current.focus();
+    } else {
+      openWindow();
+    }
   };
 
   // Handle assessment selection
@@ -50,39 +101,41 @@ const URLAssessment = () => {
       [currentIndex]: assessment
     }));
     
+    closeCurrentWindow(); // Close window when assessment is made
+    
     // Auto-navigate to next URL after assessment
     setTimeout(() => {
       if (currentIndex < urls.length - 1) {
         setCurrentIndex(currentIndex + 1);
       }
-    }, 300); // Small delay for visual feedback
+    }, 300);
   };
 
   // Navigate between URLs
   const navigateToURL = (index: number) => {
     if (index >= 0 && index < urls.length) {
+      closeCurrentWindow(); // Close current window before navigating
       setCurrentIndex(index);
     }
   };
 
-  // Handle scrolling in the preview
-  const scrollPreview = () => {
-    // This will be handled by the iframe, so we'll pass this event down
-    const iframe = document.querySelector('iframe');
-    if (iframe && iframe.contentWindow) {
-      try {
-        iframe.contentWindow.scrollBy(0, 300);
-      } catch (e) {
-        // Cross-origin restrictions might prevent this, but we'll try
-        console.log('Cannot scroll iframe due to cross-origin restrictions');
-      }
+  // Auto-open window when URL changes (optional)
+  useEffect(() => {
+    if (urls.length > 0 && urls[currentIndex]?.url) {
+      // Automatically open window for new URL after a short delay
+      const timer = setTimeout(() => {
+        if (!isWindowOpen) {
+          openWindow();
+        }
+      }, 500);
+      
+      return () => clearTimeout(timer);
     }
-  };
+  }, [currentIndex, urls]);
 
   // Handle keyboard navigation and shortcuts
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      // Prevent default behavior for our custom shortcuts
       if (['p', 'w', ' ', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
         event.preventDefault();
       }
@@ -103,14 +156,25 @@ const URLAssessment = () => {
           handleAssessment('Other');
           break;
         case ' ':
-          scrollPreview();
+          if (isWindowOpen) {
+            focusWindow();
+          } else {
+            openWindow();
+          }
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentIndex, urls.length]);
+  }, [currentIndex, urls.length, isWindowOpen]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      closeCurrentWindow();
+    };
+  }, []);
 
   // Download results
   const handleDownload = () => {
@@ -137,7 +201,6 @@ const URLAssessment = () => {
         <FileUpload onFileUpload={handleFileUpload} />
       ) : (
         <div className="space-y-6">
-          {/* Progress and Stats */}
           <ProgressStats
             currentIndex={currentIndex}
             totalUrls={urls.length}
@@ -145,29 +208,27 @@ const URLAssessment = () => {
             onDownload={handleDownload}
           />
 
-          {/* Main Assessment Interface */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[700px]">
-            {/* URL Preview */}
             <div className="lg:col-span-2">
               <URLPreviewSection
                 url={currentURL?.url}
                 currentIndex={currentIndex}
                 totalUrls={urls.length}
+                isWindowOpen={isWindowOpen}
                 onNavigate={navigateToURL}
+                onOpenWindow={openWindow}
+                onCloseWindow={closeCurrentWindow}
               />
             </div>
 
-            {/* Assessment Controls */}
             <div className="space-y-4">
               <AssessmentControls
                 currentAssessment={assessments[currentIndex]}
                 onAssessment={handleAssessment}
               />
 
-              {/* URL Details */}
               <URLDetails urlData={currentURL || {}} />
 
-              {/* Navigation Help */}
               <KeyboardShortcuts />
             </div>
           </div>
