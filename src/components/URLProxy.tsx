@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, ExternalLink } from 'lucide-react';
 
@@ -21,74 +20,94 @@ const URLProxy: React.FC<URLProxyProps> = ({ url }) => {
       setLoading(true);
       setError(false);
       
-      // List of proxy services to try
-      const proxies = [
-        `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-        `https://cors-anywhere.herokuapp.com/${url}`,
-        `https://proxy.cors.sh/${url}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
-      ];
+      try {
+        console.log(`Fetching URL through Oxylabs proxy: ${url}`);
+        
+        // Oxylabs proxy configuration
+        const proxyConfig = {
+          server: "http://pr.oxylabs.io:7777",
+          username: "customer-ecom_scraper_haReU",
+          password: "ZtFDuQ69cbZ4Enq8WQZx+"
+        };
 
-      for (const proxyUrl of proxies) {
-        try {
-          console.log(`Trying proxy: ${proxyUrl}`);
-          
-          const response = await fetch(proxyUrl, {
-            method: 'GET',
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-              'Accept-Language': 'en-US,en;q=0.5',
-              'Accept-Encoding': 'gzip, deflate, br',
-              'DNT': '1',
-              'Connection': 'keep-alive',
-              'Upgrade-Insecure-Requests': '1',
-              'Sec-Fetch-Dest': 'document',
-              'Sec-Fetch-Mode': 'navigate',
-              'Sec-Fetch-Site': 'cross-site'
-            }
-          });
-
-          if (!response.ok) {
-            console.log(`Proxy failed with status: ${response.status}`);
-            continue;
+        // Create basic auth header
+        const auth = btoa(`${proxyConfig.username}:${proxyConfig.password}`);
+        
+        const response = await fetch(proxyConfig.server, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Basic ${auth}`,
+            'X-Oxylabs-Endpoint': url,
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
           }
+        });
 
-          let data;
+        if (!response.ok) {
+          console.log(`Oxylabs proxy failed with status: ${response.status}`);
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const htmlContent = await response.text();
+        setContent(htmlContent);
+        setLoading(false);
+        console.log('Successfully fetched content through Oxylabs proxy');
+
+      } catch (err) {
+        console.error('Oxylabs proxy failed:', err);
+        
+        // Fallback to public proxies if Oxylabs fails
+        const publicProxies = [
+          `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+          `https://cors-anywhere.herokuapp.com/${url}`,
+          `https://proxy.cors.sh/${url}`
+        ];
+
+        for (const proxyUrl of publicProxies) {
           try {
-            // Try to parse as JSON first (for allorigins.win)
-            data = await response.json();
-            if (data.contents) {
-              setContent(data.contents);
+            console.log(`Trying fallback proxy: ${proxyUrl}`);
+            
+            const response = await fetch(proxyUrl, {
+              method: 'GET',
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+              }
+            });
+
+            if (!response.ok) {
+              console.log(`Fallback proxy failed with status: ${response.status}`);
+              continue;
+            }
+
+            let data;
+            try {
+              // Try to parse as JSON first (for allorigins.win)
+              data = await response.json();
+              if (data.contents) {
+                setContent(data.contents);
+                setLoading(false);
+                return;
+              }
+            } catch {
+              // If JSON parsing fails, treat as HTML
+              const htmlContent = await response.text();
+              setContent(htmlContent);
               setLoading(false);
               return;
             }
-          } catch {
-            // If JSON parsing fails, treat as HTML
-            const htmlContent = await response.text();
-            setContent(htmlContent);
-            setLoading(false);
-            return;
+          } catch (fallbackErr) {
+            console.error(`Fallback proxy ${proxyUrl} failed:`, fallbackErr);
+            continue;
           }
-        } catch (err) {
-          console.error(`Proxy ${proxyUrl} failed:`, err);
-          continue;
         }
-      }
 
-      // If all proxies fail, try direct fetch as last resort
-      try {
-        console.log('Trying direct fetch as last resort');
-        const response = await fetch(url, {
-          mode: 'no-cors',
-          method: 'GET'
-        });
-        
-        // no-cors mode doesn't give us the content, but we can try to load it in iframe
-        setContent(`<html><body><p>Loading ${url}...</p><script>window.location.href = '${url}';</script></body></html>`);
-        setLoading(false);
-      } catch (err) {
-        console.error('All fetch attempts failed:', err);
+        // If all attempts fail
+        console.error('All proxy attempts failed');
         setError(true);
         setLoading(false);
       }
@@ -116,7 +135,7 @@ const URLProxy: React.FC<URLProxyProps> = ({ url }) => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
             <p className="text-gray-600">Loading preview...</p>
-            <p className="text-xs text-gray-500 mt-1">Trying multiple proxy services...</p>
+            <p className="text-xs text-gray-500 mt-1">Using Oxylabs proxy service...</p>
           </div>
         </div>
       )}
